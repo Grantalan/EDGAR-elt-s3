@@ -8,6 +8,7 @@ import os
 
 import requests
 from dotenv import load_dotenv
+from tenacity import retry, stop_after_attempt, wait_exponential
 
 load_dotenv()
 
@@ -77,6 +78,10 @@ def run(sql):
     return resp.text
 
 
+# RustFS occasionally returns a one-off error (e.g. "bucket does not exist") while
+# ClickHouse reads dozens of zips at once. CREATE OR REPLACE makes a retry safe;
+# reraise=True shows the real ClickHouse error if every attempt fails.
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=30, max=120), reraise=True)
 def load_table(table, select):
     """Rebuild a bronze table from scratch, so re-running is always safe."""
     run(f"CREATE OR REPLACE TABLE {table} ENGINE = MergeTree ORDER BY tuple() AS {select}")
