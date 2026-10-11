@@ -5,7 +5,7 @@ from datetime import date
 
 import yfinance as yf
 
-from edgar_lxlm_scrape.form_345 import already_landed, fetch, land
+from edgar_lxlm_scrape.sec import already_landed, fetch, land
 
 # OTC stocks mostly have no usable price history, so we skip them.
 EXCHANGES = ["Nasdaq", "NYSE", "CBOE"]
@@ -15,6 +15,11 @@ BENCHMARKS = ["SPY"]
 
 # How many tickers to ask Yahoo for at once.
 BATCH_SIZE = 100
+
+# Landed after the last history batch. If a history run dies halfway, this file
+# is missing, so the next run (or Prefect retry) downloads the full history again
+# instead of switching to 5-day updates with a gap. Not a .csv, so bronze skips it.
+HISTORY_DONE = "prices/history/_complete"
 
 
 def get_tickers():
@@ -43,11 +48,18 @@ def get_prices(tickers, batch_number, period):
     land(key, df.to_csv(index=False).encode())
 
 
-if __name__ == "__main__":
-    # Full history only if we've never downloaded it.
-    period = "5d" if already_landed("prices/history/") else "max"
+def get_all_prices():
+    """Every ticker's prices, in batches. Full history only if we've never downloaded it."""
+    period = "5d" if already_landed(HISTORY_DONE) else "max"
 
     tickers = get_tickers()
     print(f"{len(tickers)} tickers, period={period}")
     for i in range(0, len(tickers), BATCH_SIZE):
         get_prices(tickers[i : i + BATCH_SIZE], i // BATCH_SIZE, period)
+
+    if period == "max":
+        land(HISTORY_DONE, b"")
+
+
+if __name__ == "__main__":
+    get_all_prices()

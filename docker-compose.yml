@@ -21,7 +21,7 @@ services:
     depends_on:
       - rustfs
     ports:
-      - "8123:8123"   # HTTP API -> bronze.py and dbt talk to this
+      - "8123:8123"   # HTTP API -> load_bronze.py and dbt talk to this
       - "9002:9000"   # native protocol (9000 is taken by other weeks' RustFS)
     environment:
       CLICKHOUSE_DB: ${CLICKHOUSE_DB}
