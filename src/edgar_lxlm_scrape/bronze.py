@@ -31,6 +31,14 @@ INSIDER_FILES = [
     "OWNER_SIGNATURE",
 ]
 
+# The files inside each quarterly XBRL zip (SEC's financial statement data sets).
+XBRL_FILES = [
+    "sub",  # one row per 10-K / 10-Q: company, CIK, form, fiscal year and period
+    "num",  # every tagged number: tag, period end, unit, value
+    "tag",  # what each tag means
+    "pre",  # which statement each number appears on
+]
+
 # Read every column as text instead of letting ClickHouse guess types.
 # 'union' merges columns across years, since SEC added columns over time.
 TEXT_SETTINGS = """
@@ -70,6 +78,19 @@ def load_insider_trades():
         )
 
 
+def load_xbrl():
+    """One table per file, across every quarterly XBRL zip."""
+    for name in XBRL_FILES:
+        load_table(
+            f"bronze_xbrl_{name}",
+            f"""
+            SELECT *, _path AS source_file
+            FROM s3('{RAW}/xbrl/*.zip :: {name}.txt', {S3_KEYS}, 'TSVRawWithNames')
+            {TEXT_SETTINGS}
+            """,
+        )
+
+
 def load_company_tickers():
     """SEC's ticker list. The JSON is {"fields": [...], "data": [[cik, name, ticker, exchange], ...]}."""
     load_table(
@@ -101,5 +122,6 @@ def load_prices():
 
 if __name__ == "__main__":
     load_insider_trades()
+    load_xbrl()
     load_company_tickers()
     load_prices()

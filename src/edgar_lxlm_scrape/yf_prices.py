@@ -5,7 +5,7 @@ from datetime import date
 
 import yfinance as yf
 
-from edgar_lxlm_scrape.extract import already_landed, fetch, land
+from edgar_lxlm_scrape.form_345 import already_landed, fetch, land
 
 # OTC stocks mostly have no usable price history, so we skip them.
 EXCHANGES = ["Nasdaq", "NYSE", "CBOE"]
