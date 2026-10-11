@@ -8,7 +8,7 @@ SEC publishes every number tagged in every 10-K and 10-Q as one zip per quarter
     tag.txt  what each tag means: label, debit/credit, data type
     pre.txt  where each number sits: balance sheet, income statement, cash flow
 
-That's the same shape as the insider trading zips, so bronze.py can read them
+That's the same shape as the insider trading zips, so load_bronze.py can read them
 straight out of RustFS the same way.
 """
 
@@ -18,7 +18,7 @@ from datetime import date
 
 from tenacity import RetryError
 
-from edgar_lxlm_scrape.form_345 import already_landed, fetch, land, make_bucket
+from edgar_lxlm_scrape.sec import already_landed, fetch, land, make_bucket
 
 # SEC's financial statement data sets start in 2009.
 FIRST_YEAR = 2009
@@ -32,7 +32,7 @@ def quarter_name(year: int, quarter: int) -> str:
 
 
 def landing_key(year: int, quarter: int) -> str:
-    """Where one quarter lives in RustFS. bronze.py globs on xbrl/*.zip."""
+    """Where one quarter lives in RustFS. load_bronze.py globs on xbrl/*.zip."""
     return f"xbrl/{quarter_name(year, quarter)}"
 
 
