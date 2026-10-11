@@ -5,8 +5,9 @@ import time
 from datetime import date
 
 import boto3
-import requests
+import httpx
 from dotenv import load_dotenv
+from tenacity import RetryError, retry, stop_after_attempt, wait_exponential
 
 load_dotenv()
 
@@ -26,11 +27,12 @@ s3 = boto3.client(
 FIRST_YEAR = 2006
 
 
-def fetch(url):
+@retry(stop=stop_after_attempt(5), wait=wait_exponential(min=1, max=30))
+def fetch(url: str) -> bytes:
     """Download a URL from SEC and return the raw bytes."""
     time.sleep(0.2)  # stay well under SEC's limit of 10 requests per second
-    resp = requests.get(url, headers=HEADERS, timeout=120)
-    resp.raise_for_status()
+    resp = httpx.get(url, headers=HEADERS, timeout=30)
+    resp.raise_for_status()          # 429/5xx -> raises -> tenacity retries
     return resp.content
 
 
@@ -65,12 +67,17 @@ def get_insider_trades(year, quarter):
 
 
 def get_all_insider_trades():
-    """Every quarter from 2006 until now. Quarters SEC hasn't published yet are skipped."""
-    for year in range(FIRST_YEAR, date.today().year + 1):
+    """Every quarter from 2006 until now. Quarters that haven't ended yet are never asked for."""
+    today = date.today()
+    current_quarter = (today.month - 1) // 3 + 1
+    for year in range(FIRST_YEAR, today.year + 1):
         for quarter in [1, 2, 3, 4]:
+            if (year, quarter) >= (today.year, current_quarter):
+                return
             try:
                 get_insider_trades(year, quarter)
-            except requests.HTTPError:
+            except RetryError:
+                # The quarter just ended and SEC hasn't published it yet. Next run will get it.
                 print(f"skip {year}q{quarter} (not published yet)")
 
 
