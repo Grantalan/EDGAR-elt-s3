@@ -31,13 +31,32 @@ INSIDER_FILES = [
     "OWNER_SIGNATURE",
 ]
 
-# The files inside each quarterly XBRL zip (SEC's financial statement data sets).
-XBRL_FILES = [
-    "sub",  # one row per 10-K / 10-Q: company, CIK, form, fiscal year and period
-    "num",  # every tagged number: tag, period end, unit, value
-    "tag",  # what each tag means
-    "pre",  # which statement each number appears on
-]
+# The files inside each quarterly XBRL zip (SEC's financial statement data sets),
+# with their columns. SEC fixes these columns, so we name them instead of letting
+# ClickHouse guess (2009q1 has headers but no rows, so there is nothing to guess from).
+XBRL_FILES = {
+    # one row per 10-K / 10-Q: company, CIK, form, fiscal year and period
+    "sub": [
+        "adsh", "cik", "name", "sic", "countryba", "stprba", "cityba", "zipba", "bas1", "bas2",
+        "baph", "countryma", "stprma", "cityma", "zipma", "mas1", "mas2", "countryinc", "stprinc",
+        "ein", "former", "changed", "afs", "wksi", "fye", "form", "period", "fy", "fp", "filed",
+        "accepted", "prevrpt", "detail", "instance", "nciks", "aciks",
+    ],
+    # every tagged number: tag, period end, unit, value
+    "num": ["adsh", "tag", "version", "ddate", "qtrs", "uom", "segments", "coreg", "value", "footnote"],
+    # what each tag means
+    "tag": ["tag", "version", "custom", "abstract", "datatype", "iord", "crdr", "tlabel", "doc"],
+    # which statement each number appears on
+    "pre": ["adsh", "report", "line", "stmt", "inpth", "rfile", "tag", "version", "plabel", "negating"],
+}
+
+# XBRL files are tab-separated, but a few values are wrapped in double quotes and
+# contain tabs (e.g. a 2022q4 10-K's list of investments). Plain TSV splits those
+# into extra columns, so read tabs as the separator and honour CSV-style quotes.
+XBRL_SETTINGS = """
+SETTINGS format_custom_field_delimiter = '\\t',
+         format_custom_escaping_rule = 'CSV'
+"""
 
 # Read every column as text instead of letting ClickHouse guess types.
 # 'union' merges columns across years, since SEC added columns over time.
@@ -80,13 +99,14 @@ def load_insider_trades():
 
 def load_xbrl():
     """One table per file, across every quarterly XBRL zip."""
-    for name in XBRL_FILES:
+    for name, columns in XBRL_FILES.items():
+        structure = ", ".join(f"{column} String" for column in columns)
         load_table(
             f"bronze_xbrl_{name}",
             f"""
             SELECT *, _path AS source_file
-            FROM s3('{RAW}/xbrl/*.zip :: {name}.txt', {S3_KEYS}, 'TSVRawWithNames')
-            {TEXT_SETTINGS}
+            FROM s3('{RAW}/xbrl/*.zip :: {name}.txt', {S3_KEYS}, 'CustomSeparatedWithNames', '{structure}')
+            {XBRL_SETTINGS}
             """,
         )
 
