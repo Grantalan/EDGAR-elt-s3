@@ -1,6 +1,6 @@
 """The daily pipeline as one Prefect flow: extract what's new -> land in RustFS -> append to bronze.
 
-Run it on a schedule:   docker compose up -d pipeline   (needs `uv run prefect server start`)
+Run it on a schedule:   docker compose up -d   (Prefect server + this flow, see docker-compose.yml)
 Run it once by hand:    uv run python -m edgar_etl_s3.pipeline.flow
 
 See runs, logs and retries at http://localhost:4200.
