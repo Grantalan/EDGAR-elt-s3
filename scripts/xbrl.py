@@ -18,7 +18,7 @@ from datetime import date
 
 from tenacity import RetryError
 
-from edgar_lxlm_scrape.sec import already_landed, fetch, land, make_bucket
+from edgar_etl_s3.utils.sec import already_landed, fetch, land, make_bucket
 
 # SEC's financial statement data sets start in 2009.
 FIRST_YEAR = 2009

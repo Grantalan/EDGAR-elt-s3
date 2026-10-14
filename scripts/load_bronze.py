@@ -4,20 +4,9 @@ ClickHouse reads straight out of RustFS (even inside the zip files), so each
 table is one SQL statement. Every column is loaded as text; cleaning is silver's job.
 """
 
-import os
+from tenacity import retry, stop_after_attempt, wait_exponential
 
-import requests
-from dotenv import load_dotenv
-
-load_dotenv()
-
-CLICKHOUSE_URL = f"http://{os.getenv('CLICKHOUSE_HOST')}:{os.getenv('CLICKHOUSE_PORT')}/"
-CLICKHOUSE_AUTH = (os.getenv("CLICKHOUSE_USER"), os.getenv("CLICKHOUSE_PASSWORD"))
-CLICKHOUSE_DB = os.getenv("CLICKHOUSE_DB")
-
-# ClickHouse runs inside Docker, so it reaches RustFS by its Docker name, not localhost.
-RAW = f"{os.getenv('S3_INTERNAL_ENDPOINT')}/{os.getenv('S3_BUCKET')}"
-S3_KEYS = f"'{os.getenv('S3_ACCESS_KEY')}', '{os.getenv('S3_SECRET_KEY')}'"
+from edgar_etl_s3.utils.clickhouse import RAW, S3_KEYS, run
 
 # The files inside each quarterly insider trading zip. One bronze table each.
 INSIDER_FILES = [
@@ -67,16 +56,10 @@ SETTINGS input_format_tsv_use_best_effort_in_schema_inference = 0,
 """
 
 
-def run(sql):
-    """Send one SQL statement to ClickHouse."""
-    resp = requests.post(
-        CLICKHOUSE_URL, params={"database": CLICKHOUSE_DB}, data=sql, auth=CLICKHOUSE_AUTH
-    )
-    if not resp.ok:
-        raise RuntimeError(resp.text)
-    return resp.text
-
-
+# RustFS occasionally returns a one-off error (e.g. "bucket does not exist") while
+# ClickHouse reads dozens of zips at once. CREATE OR REPLACE makes a retry safe;
+# reraise=True shows the real ClickHouse error if every attempt fails.
+@retry(stop=stop_after_attempt(3), wait=wait_exponential(min=30, max=120), reraise=True)
 def load_table(table, select):
     """Rebuild a bronze table from scratch, so re-running is always safe."""
     run(f"CREATE OR REPLACE TABLE {table} ENGINE = MergeTree ORDER BY tuple() AS {select}")
