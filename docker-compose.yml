@@ -36,18 +36,28 @@ services:
       retries: 20
     restart: unless-stopped
 
+  prefect:
+    image: prefecthq/prefect:3.8.7-python3.13
+    container_name: edgar_prefect
+    command: ["prefect", "server", "start", "--host", "0.0.0.0"]
+    ports:
+      - "4200:4200"   # Prefect UI -> http://localhost:4200 to see runs, logs and retries
+    volumes:
+      - prefect_data:/root/.prefect
+    restart: unless-stopped
+
   # The daily pipeline (Dockerfile): serves the flow on its schedule and runs it
   # inside the network, so it reaches the other services by their Docker names.
   pipeline:
     build: .
     container_name: edgar_pipeline
     depends_on:
+      - prefect
       - rustfs
       - clickhouse
     env_file: .env
     environment:
-      # The Prefect server you start with `uv run prefect server start` on your Mac.
-      PREFECT_API_URL: http://host.docker.internal:4200/api
+      PREFECT_API_URL: http://prefect:4200/api
       S3_ENDPOINT_URL: http://rustfs:9000
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
@@ -56,3 +66,4 @@ services:
 volumes:
   rustfs_data:
   clickhouse_data:
+  prefect_data:
