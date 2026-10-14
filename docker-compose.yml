@@ -36,6 +36,23 @@ services:
       retries: 20
     restart: unless-stopped
 
+  # The daily pipeline (Dockerfile): serves the flow on its schedule and runs it
+  # inside the network, so it reaches the other services by their Docker names.
+  pipeline:
+    build: .
+    container_name: edgar_pipeline
+    depends_on:
+      - rustfs
+      - clickhouse
+    env_file: .env
+    environment:
+      # The Prefect server you start with `uv run prefect server start` on your Mac.
+      PREFECT_API_URL: http://host.docker.internal:4200/api
+      S3_ENDPOINT_URL: http://rustfs:9000
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+    restart: unless-stopped
+
 volumes:
   rustfs_data:
   clickhouse_data:
