@@ -771,7 +771,7 @@ wheels = [
 ]
 
 [[package]]
-name = "edgar-lxlm-scrape"
+name = "edgar-etl-s3"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [
