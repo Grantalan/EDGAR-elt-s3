@@ -4,7 +4,7 @@ from datetime import date
 
 from tenacity import RetryError
 
-from edgar_lxlm_scrape.sec import already_landed, fetch, land, make_bucket
+from edgar_etl_s3.utils.sec import already_landed, fetch, get_company_tickers, land, make_bucket
 
 # SEC's insider trading data sets start in 2006.
 FIRST_YEAR = 2006
@@ -34,18 +34,6 @@ def get_all_insider_trades():
             except RetryError:
                 # The quarter just ended and SEC hasn't published it yet. Next run will get it.
                 print(f"skip {year}q{quarter} (not published yet)")
-
-
-def get_company_tickers():
-    """Every ticker SEC knows about, with CIK, company name and exchange."""
-    data = fetch("https://www.sec.gov/files/company_tickers_exchange.json")
-    land(f"company_tickers/{date.today()}.json", data)
-
-
-def get_filings(cik, ticker):
-    """A company's filing history (10-K, 10-Q, 8-K, Form 4, ...)."""
-    url = f"https://data.sec.gov/submissions/CIK{cik:010d}.json"
-    land(f"filings/{ticker}/{date.today()}.json", fetch(url))
 
 
 if __name__ == "__main__":
