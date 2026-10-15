@@ -1,0 +1,21 @@
+# dbt_project.yml — what this dbt project is.
+#
+# Run it from the repo root (the Prefect flow does this for you):
+#   uv run dbt build --project-dir src/edgar_etl_s3/pipeline/transform --profiles-dir src/edgar_etl_s3/pipeline/transform
+
+name: "edgar"
+version: "1.0.0"
+profile: "edgar"
+
+model-paths: ["models"]
+target-path: "target"
+clean-targets: ["target", "dbt_packages"]
+
+# silver = view: cheap, always fresh, recomputed on every query
+# gold   = table: computed once per run, fast for the dashboard
+models:
+  edgar:
+    silver:
+      +materialized: view
+    gold:
+      +materialized: table

@@ -1,0 +1,82 @@
+version: 2
+
+# Tests + docs. Each test compiles to a query that returns violating rows; any
+# rows back = FAIL. `dbt build` runs them right after each model.
+
+models:
+  - name: silver_insider_filings
+    description: "One row per Form 3/4/5 filing."
+    columns:
+      - name: accession_number
+        description: "SEC's ID for the filing. Primary key."
+        data_tests: [not_null, unique]
+      - name: form
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["3", "3/A", "4", "4/A", "5", "5/A"]
+
+  - name: silver_insider_owners
+    description: "One row per insider per filing, with their role as flags."
+    columns:
+      - name: accession_number
+        description: "Every owner belongs to a filing."
+        data_tests:
+          - relationships:
+              arguments:
+                to: ref('silver_insider_filings')
+                field: accession_number
+
+  - name: silver_insider_trades
+    description: "One row per stock trade. code P = buy, S = sell."
+    columns:
+      - name: trade_id
+        description: "SEC's ID for the trade. Primary key."
+        data_tests: [not_null, unique]
+      - name: acquired_disposed
+        data_tests:
+          - accepted_values:
+              arguments:
+                values: ["A", "D"]
+
+  - name: silver_prices
+    description: "One row per ticker per trading day, newest download wins."
+    data_tests:
+      - unique:
+          arguments:
+            column_name: "(ticker, trade_date)"
+    columns:
+      - name: close
+        data_tests: [not_null]
+
+  - name: silver_companies
+    description: "One row per ticker: CIK, name, exchange."
+    columns:
+      - name: ticker
+        description: "Primary key. Duplicates would double count every price join."
+        data_tests: [not_null, unique]
+
+  - name: silver_xbrl_filings
+    description: "One row per financial filing (10-K, 10-Q, 20-F, ...)."
+    columns:
+      - name: adsh
+        description: "SEC's ID for the filing. Primary key."
+        data_tests: [not_null, unique]
+
+  - name: silver_xbrl_facts
+    description: "One row per reported number, company-wide totals only."
+    columns:
+      - name: adsh
+        description: "Every number belongs to a filing."
+        data_tests:
+          # SEC's own 2013q1 zip has 1,029 numbers for 4 filings missing from its
+          # sub.txt. Warn instead of fail: it's a gap in the source, not our load,
+          # and those numbers can't be tied to a company so gold never uses them.
+          - relationships:
+              arguments:
+                to: ref('silver_xbrl_filings')
+                field: adsh
+              config:
+                severity: warn
+      - name: tag
+        data_tests: [not_null]

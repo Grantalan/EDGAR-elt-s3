@@ -9,6 +9,8 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "boto3>=1.43.108",
+    "dbt-clickhouse>=1.10.3",
+    "dbt-core>=1.12.5",
     "edgartools>=5.59.1",
     "httpx>=0.28.1",
     "ipykernel>=7.4.0",

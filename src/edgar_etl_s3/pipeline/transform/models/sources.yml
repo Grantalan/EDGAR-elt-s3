@@ -1,0 +1,23 @@
+version: 2
+
+# The bronze tables, declared as SOURCES: dbt didn't build them, load_bronze.py
+# did, straight from RustFS. Everything is text, exactly as SEC and Yahoo sent it.
+
+sources:
+  - name: bronze
+    schema: "{{ env_var('CLICKHOUSE_DB') }}"
+    tables:
+      - name: bronze_insider_submission
+        description: "One row per Form 3/4/5 filing."
+      - name: bronze_insider_reportingowner
+        description: "One row per insider per filing."
+      - name: bronze_insider_nonderiv_trans
+        description: "One row per stock trade."
+      - name: bronze_prices
+        description: "Daily prices: full history plus overlapping daily downloads."
+      - name: bronze_company_tickers
+        description: "Daily copies of SEC's CIK -> ticker list."
+      - name: bronze_xbrl_sub
+        description: "One row per 10-K / 10-Q / 20-F filing."
+      - name: bronze_xbrl_num
+        description: "Every number tagged in every financial statement."

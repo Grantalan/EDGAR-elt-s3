@@ -1,4 +1,4 @@
-"""The daily pipeline as one Prefect flow: extract what's new -> land in RustFS -> append to bronze.
+"""The daily pipeline as one Prefect flow: extract what's new -> land in RustFS -> append to bronze -> dbt build.
 
 Run it on a schedule:   docker compose up -d   (Prefect server + this flow, see docker-compose.yml)
 Run it once by hand:    uv run python -m edgar_etl_s3.pipeline.flow
@@ -6,13 +6,18 @@ Run it once by hand:    uv run python -m edgar_etl_s3.pipeline.flow
 See runs, logs and retries at http://localhost:4200.
 """
 
+import subprocess
 import sys
+from pathlib import Path
 
 from prefect import flow, get_run_logger, task
 from prefect.schedules import Cron
 
 from edgar_etl_s3.pipeline.load import load_bronze
 from edgar_etl_s3.pipeline.extract import insider_trades, prices, xbrl
+
+# The dbt project (silver and gold models + tests) lives next to this file.
+TRANSFORM = Path(__file__).parent / "transform"
 
 
 @task(retries=2, retry_delay_seconds=60)
@@ -47,6 +52,15 @@ def load() -> None:
     logger.info("bronze tables up to date in ClickHouse")
 
 
+@task
+def transform() -> None:
+    """Rebuild silver (and later gold) with dbt, then run every data test. Raises if any fail."""
+    dbt = Path(sys.executable).parent / "dbt"
+    result = subprocess.run([str(dbt), "build", "--project-dir", TRANSFORM, "--profiles-dir", TRANSFORM])
+    if result.returncode != 0:
+        raise RuntimeError("dbt build failed - a model or test is broken (see output above)")
+
+
 @flow(name="edgar-daily", log_prints=True)
 def run_pipeline() -> None:
     """Source to bronze, in order. Each call below becomes a tracked task run."""
@@ -55,6 +69,7 @@ def run_pipeline() -> None:
     extract_xbrl()
     extract_prices()
     load()
+    transform()
     logger.info("pipeline complete")
 
 
