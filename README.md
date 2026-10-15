@@ -18,10 +18,11 @@ Docker Desktop settings) and [uv](https://docs.astral.sh/uv/getting-started/inst
 ```bash
 git clone https://github.com/Grantalan/EDGAR-lxml-elt.git
 cd EDGAR-lxml-elt
+uv sync                  # create the environment (.venv/)
 cp .env.example .env
 ```
 
-Open `.env` and set `SEC_USER_AGENT` to your name and email. SEC blocks requests without it.
+Open `.env` and set `SEC_USER_AGENT` to your name and email.
 
 **2. Start the storage**
 
@@ -55,15 +56,6 @@ SEC + Yahoo ──► RustFS (raw files) ──► ClickHouse bronze ──► d
                 └──────────────── Prefect, weekdays at 6am ────────────────┘
 ```
 
-| Step | Code |
-|---|---|
-| One-time backfill | `scripts/` |
-| Daily extract (only new data) | `src/edgar_etl_s3/pipeline/extract/` |
-| Append new files to bronze | `src/edgar_etl_s3/pipeline/load/` |
-| Silver + gold models and tests (dbt) | `src/edgar_etl_s3/pipeline/transform/` |
-| Prefect flow | `src/edgar_etl_s3/pipeline/flow.py` |
-| Dashboard | `src/edgar_etl_s3/dashboard/app.py` |
-
 Why these choices: [DECISIONS.md](DECISIONS.md).
 
 ## Data source
@@ -77,10 +69,3 @@ Why these choices: [DECISIONS.md](DECISIONS.md).
 
 SEC data is public domain; requests follow the SEC's [fair access policy](https://www.sec.gov/os/accessing-edgar-data)
 (declared User-Agent, at most 10 requests/second). Yahoo Finance data is for personal and educational use.
-
-## Troubleshooting
-
-- **Port already in use**: this project uses 4200, 8123, 8501, 9002, 9010 and 9011. Stop whatever else holds them.
-- **SEC returns 403**: `SEC_USER_AGENT` in `.env` isn't set to a real name and email.
-- **ClickHouse runs out of memory**: raise Docker Desktop's memory limit to 12 GB or more.
-- **Run the pipeline once by hand**: `docker exec edgar_pipeline uv run --no-sync prefect deployment run 'edgar-daily/edgar-daily'`
