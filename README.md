@@ -15,9 +15,9 @@ You need [Docker](https://docs.docker.com/get-docker/) and [uv](https://docs.ast
 **1. Clone and configure**
 
 ```bash
-git clone https://github.com/Grantalan/EDGAR-lxml-elt.git
+git clone
 cd EDGAR-lxml-elt
-uv sync                  # create the environment (.venv/)
+uv sync                  
 cp .env.example .env
 ```
 
