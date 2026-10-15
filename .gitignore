@@ -4,3 +4,7 @@ data/
 __pycache__/
 .DS_Store
 .env
+src/edgar_etl_s3/pipeline/transform/target/
+src/edgar_etl_s3/pipeline/transform/logs/
+src/edgar_etl_s3/pipeline/transform/dbt_packages/
+logs/

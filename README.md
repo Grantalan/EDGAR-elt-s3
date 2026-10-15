@@ -2,59 +2,85 @@
 
 [![Data source: SEC EDGAR](https://img.shields.io/badge/data%20source-SEC%20EDGAR-003366)](https://www.sec.gov/edgar/search/)
 [![Python 3.13](https://img.shields.io/badge/python-3.13-3776AB?logo=python&logoColor=white)](https://www.python.org/)
-[![edgartools](https://img.shields.io/badge/built%20with-edgartools-2a78d6)](https://github.com/dgunning/edgartools)
 
-This is going to be an end-to-end SEC filing monitor system to create investment advice.
+An end-to-end pipeline that answers two questions: **which stocks are insiders cluster-buying right now**,
+and **do insider buys actually beat the market?**
 
 ![Annual revenue and net margin for Apple, Alphabet, Tesla, NVIDIA, BlackRock and Oracle, from XBRL financials](assets/revenue-and-net-margin.jpg)
 
-## Data source
+## Run it
 
-All data comes from the U.S. Securities and Exchange Commission's
-[EDGAR](https://www.sec.gov/edgar/search/) system: Form 4 insider trades, 8-K events, 10-K XBRL financials,
-13F-HR institutional holdings and Form D private offerings. Requests follow the SEC's
-[fair access policy](https://www.sec.gov/os/accessing-edgar-data) (declared User-Agent, at most 10 requests/second).
+You need [Docker](https://docs.docker.com/get-docker/) (give it **12 GB+ memory** and **40 GB disk** in
+Docker Desktop settings) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+
+**1. Clone and configure**
+
+```bash
+git clone https://github.com/Grantalan/EDGAR-lxml-elt.git
+cd EDGAR-lxml-elt
+cp .env.example .env
+```
+
+Open `.env` and set `SEC_USER_AGENT` to your name and email. SEC blocks requests without it.
+
+**2. Start the storage**
+
+```bash
+docker compose up -d rustfs clickhouse
+```
+
+**3. Load all the history** (one time, ~20 GB, about 30 minutes)
+
+```bash
+./scripts/backfill.sh
+```
+
+**4. Start the dashboard and the daily pipeline**
+
+```bash
+docker compose up -d
+```
+
+| Open | What |
+|---|---|
+| http://localhost:8501 | Dashboard |
+| http://localhost:4200 | Prefect: pipeline runs, logs, schedule (weekdays 6am Central) |
+
+That's it. Every weekday the pipeline fetches only what's new, appends it, and rebuilds the dashboard tables.
 
 ## How it works
 
-1. **Extract** – download new SEC filings and stock prices.
-2. **Land** – save the raw files in RustFS, untouched.
-3. **Load** – add the new files to the bronze tables in ClickHouse.
-4. **Repeat** – Prefect runs steps 1-3 every weekday at 6am.
+```
+SEC + Yahoo ──► RustFS (raw files) ──► ClickHouse bronze ──► dbt silver ──► dbt gold ──► Streamlit
+                └──────────────── Prefect, weekdays at 6am ────────────────┘
+```
 
-## Run it
+| Step | Code |
+|---|---|
+| One-time backfill | `scripts/` |
+| Daily extract (only new data) | `src/edgar_etl_s3/pipeline/extract/` |
+| Append new files to bronze | `src/edgar_etl_s3/pipeline/load/` |
+| Silver + gold models and tests (dbt) | `src/edgar_etl_s3/pipeline/transform/` |
+| Prefect flow | `src/edgar_etl_s3/pipeline/flow.py` |
+| Dashboard | `src/edgar_etl_s3/dashboard/app.py` |
 
-You need [Docker](https://docs.docker.com/get-docker/) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+Why these choices: [DECISIONS.md](DECISIONS.md).
 
-1. **Get the code**
-   ```bash
-   git clone https://github.com/Grantalan/EDGAR-lxml-elt.git
-   cd EDGAR-lxml-elt
-   ```
+## Data source
 
-2. **Add your settings** – copy the example, then put your name and email in `SEC_USER_AGENT`
-   (SEC blocks requests without it) and pick your own passwords.
-   ```bash
-   cp .env.example .env
-   ```
+| Data | Where from | Updates |
+|---|---|---|
+| Insider trades (Forms 3, 4, 5) | [SEC insider transactions data sets](https://www.sec.gov/data-research/sec-markets-data/insider-transactions-data-sets) | Quarterly |
+| Financial statements (10-K, 10-Q) | [SEC financial statement data sets](https://www.sec.gov/data-research/sec-markets-data/financial-statement-data-sets) | Quarterly |
+| Ticker list (CIK ↔ ticker) | [SEC company_tickers_exchange.json](https://www.sec.gov/files/company_tickers_exchange.json) | Daily |
+| Daily stock prices | Yahoo Finance via [yfinance](https://github.com/ranaroussi/yfinance) | Daily |
 
-3. **Start the storage** (RustFS + ClickHouse)
-   ```bash
-   docker compose up -d rustfs clickhouse
-   ```
+SEC data is public domain; requests follow the SEC's [fair access policy](https://www.sec.gov/os/accessing-edgar-data)
+(declared User-Agent, at most 10 requests/second). Yahoo Finance data is for personal and educational use.
 
-4. **Load all the history** – one time only. Downloads ~20 GB; takes about 30 minutes on a good connection.
-   ```bash
-   uv run python scripts/form_345.py
-   uv run python scripts/xbrl.py
-   uv run python scripts/yf_prices.py
-   uv run python scripts/load_bronze.py
-   ```
+## Troubleshooting
 
-5. **Start the daily pipeline** (Prefect + the pipeline)
-   ```bash
-   docker compose up -d
-   ```
-   It runs every weekday at 6am Central. Watch runs at http://localhost:4200.
-
-Run it once by hand any time: `uv run python -m edgar_etl_s3.pipeline.flow`
+- **Port already in use**: this project uses 4200, 8123, 8501, 9002, 9010 and 9011. Stop whatever else holds them.
+- **SEC returns 403**: `SEC_USER_AGENT` in `.env` isn't set to a real name and email.
+- **ClickHouse runs out of memory**: raise Docker Desktop's memory limit to 12 GB or more.
+- **Run the pipeline once by hand**: `docker exec edgar_pipeline uv run --no-sync prefect deployment run 'edgar-daily/edgar-daily'`

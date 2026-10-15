@@ -1,0 +1,18 @@
+version: 2
+
+# Gold: one table per question, what the dashboard reads.
+
+models:
+  - name: gold_insider_cluster_buys
+    description: "Companies where 3+ officers/directors bought on the open market in the last 90 days."
+    columns:
+      - name: ticker
+        description: "Primary key. A duplicate would double count a company on the dashboard."
+        data_tests: [not_null, unique]
+
+  - name: gold_insider_buy_returns
+    description: "One row per insider buy filing: 90 and 180 day returns vs SPY."
+    columns:
+      - name: accession_number
+        description: "Primary key: one row per filing."
+        data_tests: [not_null, unique]
