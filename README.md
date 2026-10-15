@@ -32,7 +32,7 @@ docker compose up -d rustfs clickhouse
 **3. Load insider trading data** (one time, ~20 GB, about 30 minutes)
 
 ```bash
-./scripts/backfill.sh
+uv run scripts/backfill.py
 ```
 
 **4. Start the dashboard and the daily pipeline**
