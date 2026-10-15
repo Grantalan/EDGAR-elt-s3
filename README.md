@@ -10,8 +10,7 @@ and **do insider buys actually beat the market?**
 
 ## Run it
 
-You need [Docker](https://docs.docker.com/get-docker/) (give it **12 GB+ memory** and **40 GB disk** in
-Docker Desktop settings) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+You need [Docker](https://docs.docker.com/get-docker/) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 **1. Clone and configure**
 
@@ -30,7 +29,7 @@ Open `.env` and set `SEC_USER_AGENT` to your name and email.
 docker compose up -d rustfs clickhouse
 ```
 
-**3. Load all the history** (one time, ~20 GB, about 30 minutes)
+**3. Load insider trading data** (one time, ~20 GB, about 30 minutes)
 
 ```bash
 ./scripts/backfill.sh
@@ -47,7 +46,7 @@ docker compose up -d
 | http://localhost:8501 | Dashboard |
 | http://localhost:4200 | Prefect: pipeline runs, logs, schedule (weekdays 6am Central) |
 
-That's it. Every weekday the pipeline fetches only what's new, appends it, and rebuilds the dashboard tables.
+Every weekday the pipeline fetches only what's new, appends it, and rebuilds the dashboard tables.
 
 ## How it works
 
