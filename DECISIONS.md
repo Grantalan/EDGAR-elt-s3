@@ -34,10 +34,6 @@ rebuilt from raw. ~10 GB.
 (`s3('…/2026q3_form345.zip :: SUBMISSION.tsv')`), so loading a file is one SQL statement, and it
 handles concurrent readers and writers.
 
-**Why not DuckDB:** one writer at a time means the dashboard would block `dbt build`, forcing a
-separate serving copy; and a single file at this size is uncomfortable. **Why not Postgres:**
-row-oriented, so scans and aggregates over hundreds of millions of rows are slow.
-
 **Trade-off:** less familiar SQL dialect (`argMax`, `ASOF JOIN`, `Date32`), and the `Date` type stops
 at 1970: pre-1970 prices silently collapsed until silver switched to `Date32`.
 
@@ -64,8 +60,6 @@ at 1970: pre-1970 prices silently collapsed until silver switched to `Date32`.
 Two views on the gold tables: the current cluster buys, and median return after insider buys vs SPY
 by year. Code-first, reads ClickHouse directly (no driver plugin like Metabase needs), and runs as a
 container alongside the rest.
-
-**No publish step:** ClickHouse serves the dashboard while dbt writes, so there's no serving copy.
 
 ## What broke along the way
 

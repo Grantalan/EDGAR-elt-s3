@@ -10,7 +10,7 @@ and **do insider buys actually beat the market?**
 
 ## Run it
 
-You need [Docker](https://docs.docker.com/get-docker/) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
+You need [Docker](https://docs.docker.com/get-docker/) (give it **12 GB+ memory** in Docker Desktop settings) and [uv](https://docs.astral.sh/uv/getting-started/installation/).
 
 **1. Clone and configure**
 
@@ -32,7 +32,7 @@ docker compose up -d rustfs clickhouse
 **3. Load insider trading data** (one time, ~20 GB, about 30 minutes)
 
 ```bash
-./scripts/backfill.sh
+uv run scripts/backfill.py
 ```
 
 **4. Start the dashboard and the daily pipeline**
