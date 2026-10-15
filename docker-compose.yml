@@ -50,6 +50,7 @@ services:
   # inside the network, so it reaches the other services by their Docker names.
   pipeline:
     build: .
+    image: edgar-etl-s3
     container_name: edgar_pipeline
     depends_on:
       - prefect
@@ -59,6 +60,22 @@ services:
     environment:
       PREFECT_API_URL: http://prefect:4200/api
       S3_ENDPOINT_URL: http://rustfs:9000
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: "8123"
+    restart: unless-stopped
+
+  # The dashboard (src/edgar_etl_s3/dashboard/app.py): same image, different command.
+  dashboard:
+    build: .
+    image: edgar-etl-s3
+    container_name: edgar_dashboard
+    command: ["uv", "run", "--no-sync", "streamlit", "run", "src/edgar_etl_s3/dashboard/app.py", "--server.address", "0.0.0.0"]
+    ports:
+      - "8501:8501"   # dashboard -> http://localhost:8501
+    depends_on:
+      - clickhouse
+    env_file: .env
+    environment:
       CLICKHOUSE_HOST: clickhouse
       CLICKHOUSE_PORT: "8123"
     restart: unless-stopped

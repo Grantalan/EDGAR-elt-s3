@@ -9,6 +9,7 @@ authors = [
 requires-python = ">=3.13"
 dependencies = [
     "boto3>=1.43.108",
+    "clickhouse-connect>=1.10.0",
     "dbt-clickhouse>=1.10.3",
     "dbt-core>=1.12.5",
     "edgartools>=5.59.1",
@@ -22,6 +23,7 @@ dependencies = [
     "prefect>=3.8.7",
     "python-dotenv>=1.2.4",
     "requests>=2.34.2",
+    "streamlit>=1.66.0",
     "tenacity>=9.1.4",
     "yfinance>=1.7.0",
 ]
