@@ -45,10 +45,14 @@ at 1970: pre-1970 prices silently collapsed until silver switched to `Date32`.
 
 - **Bronze** is append-only. Every row keeps `source_file`, and the daily loader only inserts files
   not already in the table, so the 20-year backfill is never reprocessed.
-- **Silver** (dbt): typed, deduped, renamed, one row per real thing. Views, except `silver_prices`, a
-  table because its dedupe takes ~2 minutes and gold reads it many times.
+- **Silver** (dbt): cleans bronze. Text becomes real dates and numbers, duplicates are removed, and
+  each row is one real thing (one trade, one filing, one stock on one day). Most silver models are
+  views (saved queries, no extra storage). `silver_prices` is a table instead: removing duplicate
+  days from 27M prices takes ~2 minutes, so it's done once per run rather than every time gold reads it.
 - **Gold** (dbt): one table per question.
-- **22+ dbt tests**: `not_null`, `unique`, `accepted_values`, `relationships`.
+- **19 dbt tests** stop the run before bad data reaches the dashboard: `unique` (no duplicates
+  that double count), `not_null` (no missing keys or prices), `accepted_values` (only real form
+  and trade codes), `relationships` (no insider or number without its filing).
 - **Prefect** runs extract → land → load → `dbt build` on weekdays at 6am Central, with retries on every
   network step. The pipeline runs in Docker next to RustFS and ClickHouse, so nothing depends on an
   open terminal.
